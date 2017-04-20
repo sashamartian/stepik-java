@@ -1,48 +1,40 @@
 package main;
 
 
-import java.lang.management.ManagementFactory;
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
-
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import resourceServer.ResourceServer;
+import resourceServer.ResourceServerController;
+import resourceServer.ResourceServerControllerMBean;
+import servlets.ResourcePageServlet;
 
-import resources.ResourceServerControllerMBean;
-import resources.ResourceServerController;
-import resources.ResourceServlet;
-import resources.TestResource;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import java.lang.management.ManagementFactory;
 
-/**
- * @author v.chibrikov
- *         <p>
- *         Пример кода для курса на https://stepic.org/
- *         <p>
- *         Описание курса и лицензия: https://github.com/vitaly-chibrikov/stepic_java_webserver
- */
 public class Main {
-    public static void main(String[] args) throws Exception {
-	    Server server = new Server(8080);
-	    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+	public static void main(String[] args) throws Exception {
+		ResourceServer resourceServer = new ResourceServer();
 
-	    ResourceServlet resourceServlet = new ResourceServlet(new TestResource());
-	    ResourceServerControllerMBean resourceServer = new ResourceServerController(resourceServlet);
+		ResourceServerControllerMBean testResourceConfig = new ResourceServerController(resourceServer);
+		MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+		ObjectName name = new ObjectName("Admin:type=ResourceServerController");
+		mbs.registerMBean(testResourceConfig, name);
 
-	    MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-	    ObjectName name = new ObjectName("Admin:type=ResourceServerController");
-	    mbs.registerMBean(resourceServer, name);
+		Server server = new Server(8080);
+		ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+		context.addServlet(new ServletHolder(new ResourcePageServlet(resourceServer)), ResourcePageServlet.PAGE_URL);
 
-	    context.addServlet(new ServletHolder(resourceServlet), "/resources");
+		HandlerList handlers = new HandlerList();
+		handlers.setHandlers(new Handler[]{context});
+		server.setHandler(handlers);
 
-	    HandlerList handlers = new HandlerList();
-	    handlers.setHandlers(new Handler[]{context});
-	    server.setHandler(handlers);
+		server.start();
+		System.out.println("Server started");
 
-	    server.start();
-	    System.out.println("Server started");
-	    server.join();
-    }
+		server.join();
+	}
 }
